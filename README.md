@@ -1,76 +1,53 @@
-# MAM + Tauri Workflow Template
+# Add Tauri To Any $mol Project
 
-Шаблон отдельного репозитория для подключения Tauri к `$mol/MAM` проекту через GitHub.
+Минимальные шаги.
 
-Что внутри:
-- готовый `src-tauri` каркас
-- reusable workflow (`workflow_call`)
-- готовый publish workflow для релизов по тегу
+## 1) Скопируй `src-tauri`
 
-## 1. Создать репозиторий из шаблона
+Скопируй папку `src-tauri` из этого репозитория в корень своего $mol-проекта.
 
-1. Создайте новый репозиторий на GitHub (или `Use this template`).
-2. Скопируйте содержимое этой папки в корень нового репозитория.
-3. Убедитесь, что в репозитории есть ваш MAM модуль (например `mynamespace/application/app`).
+## 2) Добавь workflow в свой проект
 
-## 2. Настроить путь к модулю
+Создай `.github/workflows/tauri.yml`:
 
-По умолчанию используется:
-- модуль: `mynamespace/application/app`
-- веб-бандл: `mynamespace/application/app/-`
+```yml
+name: Tauri Desktop Build
 
-Для своего проекта:
-1. Задайте `MAM_MODULE_PATH` в `.github/workflows/tauri_publish.yml`.
-2. В reusable workflow передайте `mam_module_path`.
-3. `devUrl` и `frontendDist` workflow обновляет автоматически, без скриптов в вашем репозитории.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
-## 3. Локальный запуск
-
-```bash
-npm ci
-export MAM_MODULE_PATH=mynamespace/application/app
-npm run mam:build
-npm run tauri:dev
+jobs:
+  tauri:
+    uses: b-on-g/tauri-mol-workflow-template/.github/workflows/tauri_reusable.yml@master
+    with:
+      mam_module_path: app
+      mam_dev_port: '9080'
+      tauri_config: src-tauri/tauri.conf.json
+    secrets: inherit
 ```
 
-## 4. Локальная сборка
+Где `mam_module_path` это путь до твоего entry-модуля.
 
-```bash
-export MAM_MODULE_PATH=mynamespace/application/app
-npm run tauri:build
-```
+Примеры:
+- `app`
+- `bog/formigo/app`
+- `mynamespace/application/app`
 
-Артефакты: `src-tauri/target/release/bundle/`
+## 3) Запусти сборку
 
-## 5. GitHub Actions
-
-### Publish workflow
-
-`.github/workflows/tauri_publish.yml`:
-- `push` тега `v*` -> собирает Linux/macOS/Windows
-- `workflow_dispatch` -> ручной запуск
-- публикует GitHub Release и прикладывает инсталляторы
-
-### Reusable workflow
-
-`.github/workflows/tauri_reusable.yml` можно подключить из другого репозитория.
-
-Пример подключения: `examples/use-reusable.yml`.
-
-## 6. Релиз
+- Вручную: GitHub Actions -> `Tauri Desktop Build` -> Run workflow
+- Или тегом:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-После этого workflow соберет и опубликует релиз.
+## Что важно
 
-## Prerequisites
-
-- Node.js 24+
-- Rust stable
-- platform-specific Tauri prerequisites:
-  - macOS: Xcode Command Line Tools
-  - Windows: Visual Studio C++ Build Tools + WebView2
-  - Linux: WebKitGTK и др. (установится в CI на Ubuntu)
+- Никаких скриптов копировать не нужно.
+- Workflow сам ставит `mam` + `@tauri-apps/cli`.
+- Workflow сам обновляет `devUrl` и `frontendDist` в `src-tauri/tauri.conf.json`.
