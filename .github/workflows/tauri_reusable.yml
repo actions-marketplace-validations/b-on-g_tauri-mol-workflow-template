@@ -1,0 +1,92 @@
+name: Tauri Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      mam_module_path:
+        type: string
+        required: true
+      mam_dev_port:
+        type: string
+        required: false
+        default: '9080'
+      mam_dist_path:
+        type: string
+        required: false
+        default: ''
+      tauri_config:
+        type: string
+        required: false
+        default: src-tauri/tauri.conf.json
+    secrets:
+      GH_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: linux
+          - os: windows-latest
+            artifact: windows
+          - os: macos-latest
+            artifact: macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libssl-dev \
+            squashfs-tools
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Build MAM web bundle
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.mam_dist_path }}" ]; then
+            bash ./scripts/build-mam.sh "${{ inputs.mam_module_path }}" "${{ inputs.mam_dist_path }}"
+          else
+            bash ./scripts/build-mam.sh "${{ inputs.mam_module_path }}"
+          fi
+
+      - name: Configure Tauri paths
+        shell: bash
+        run: |
+          bash ./scripts/configure-tauri-path.sh "${{ inputs.mam_module_path }}" "${{ inputs.mam_dev_port }}"
+
+      - name: Build Tauri app
+        run: npx tauri build --config "${{ inputs.tauri_config }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.artifact }}
+          path: src-tauri/target/release/bundle

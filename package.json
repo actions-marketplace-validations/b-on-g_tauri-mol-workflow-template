@@ -1,0 +1,20 @@
+{
+  "name": "tauri-mol-workflow-template",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Template repo for connecting Tauri to MAM projects with reusable GitHub workflows",
+  "scripts": {
+    "mam:build": "bash ./scripts/build-mam.sh \"${MAM_MODULE_PATH:-mynamespace/application/app}\"",
+    "tauri:dev": "bash ./scripts/configure-tauri-path.sh \"${MAM_MODULE_PATH:-mynamespace/application/app}\" \"${MAM_DEV_PORT:-9080}\" && tauri dev --config src-tauri/tauri.conf.json",
+    "tauri:build": "bash ./scripts/configure-tauri-path.sh \"${MAM_MODULE_PATH:-mynamespace/application/app}\" \"${MAM_DEV_PORT:-9080}\" && tauri build --config src-tauri/tauri.conf.json"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0"
+  },
+  "dependencies": {
+    "mam": "*"
+  }
+}

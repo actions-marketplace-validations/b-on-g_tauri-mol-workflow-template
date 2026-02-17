@@ -1,0 +1,13 @@
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  tauri:
+    uses: your-org/tauri-mol-workflow-template/.github/workflows/tauri_reusable.yml@main
+    with:
+      mam_module_path: mynamespace/application/app
+      mam_dev_port: '9080'
+      tauri_config: src-tauri/tauri.conf.json
+    secrets: inherit

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MAM App",
+  "version": "0.1.0",
+  "identifier": "com.example.mamapp",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": "http://localhost:9080/mynamespace/application/app/",
+    "frontendDist": "../mynamespace/application/app/-"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MAM App",
+        "width": 1280,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}
