@@ -2,9 +2,9 @@
 
 Минимальные шаги.
 
-## 1) Скопируй `src-tauri`
+## 1) скопируй `src-tauri`
 
-Скопируй папку `src-tauri` из этого репозитория в корень своего $mol-проекта.
+скопируй папку `src-tauri` из этого репозитория в корень своего $mol-проекта.
 
 ## 2) Добавь workflow в свой проект
 
@@ -14,25 +14,25 @@
 name: Tauri Desktop Build
 
 on:
-  workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
+    workflow_dispatch:
+    push:
+        tags:
+            - 'v*'
 
 jobs:
-  tauri:
-    uses: b-on-g/tauri-mol-workflow-template/.github/workflows/tauri_reusable.yml@master
-    with:
-      mam_module_path: app
-      mam_dev_port: '9080'
-      tauri_config: src-tauri/tauri.conf.json
-    secrets: inherit
+    tauri:
+        uses: b-on-g/tauri-mol-workflow-template/.github/workflows/tauri_reusable.yml@master
+        with:
+            mam_module_path: app
+            mam_dev_port: '9080'
+            tauri_config: src-tauri/tauri.conf.json
+        secrets: inherit
 ```
 
 Где `mam_module_path` это путь до твоего entry-модуля.
 
 Примеры:
-- `app`
+
 - `bog/formigo/app`
 - `mynamespace/application/app`
 

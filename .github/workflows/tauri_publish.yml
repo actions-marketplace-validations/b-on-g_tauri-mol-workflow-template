@@ -98,6 +98,13 @@ jobs:
           echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
           exit 1
 
+      - name: Generate Tauri icons
+        shell: bash
+        run: |
+          if [ -f "src-tauri/icons/icon.png" ]; then
+            npx tauri icon "src-tauri/icons/icon.png" --output "src-tauri/icons"
+          fi
+
       - name: Configure Tauri config
         shell: bash
         run: |
@@ -115,6 +122,12 @@ jobs:
           conf.build = conf.build || {};
           conf.build.devUrl = devUrl;
           conf.build.frontendDist = frontendDist;
+          conf.bundle = conf.bundle || {};
+          conf.bundle.icon = [
+            "icons/icon.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+          ];
           fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
           ' "src-tauri/tauri.conf.json" "${DEV_URL}" "${FRONTEND_DIST}"
 
