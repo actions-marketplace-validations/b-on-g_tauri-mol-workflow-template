@@ -1,0 +1,16 @@
+name: Tauri Desktop Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  tauri:
+    uses: b-on-g/tauri-mol-workflow-template/.github/workflows/tauri_reusable.yml@master
+    with:
+      mam_module_path: app
+      mam_dev_port: '9080'
+      tauri_config: src-tauri/tauri.conf.json
+    secrets: inherit

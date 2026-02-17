@@ -1,0 +1,12 @@
+{
+  "name": "Tauri + MAM Desktop Build",
+  "description": "Build cross-platform Tauri installers for a $mol/MAM module via reusable workflow.",
+  "iconName": "package",
+  "categories": [
+    "Continuous integration",
+    "Rust"
+  ],
+  "filePatterns": [
+    "src-tauri/tauri.conf.json"
+  ]
+}
