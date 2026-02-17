@@ -23,7 +23,7 @@ on:
         required: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build_desktop:
@@ -308,3 +308,34 @@ jobs:
             src-tauri/gen/android/app/build/outputs/apk/**/*.apk
             src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
           if-no-files-found: ignore
+
+  release:
+    if: always() && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [build_desktop, build_android]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tauri-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('manual-{0}', github.run_number) }}"
+          name: "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Manual build {0}', github.run_number) }}"
+          draft: "${{ github.event_name == 'workflow_dispatch' }}"
+          prerelease: "${{ github.event_name == 'workflow_dispatch' }}"
+          files: |
+            dist/**/*.dmg
+            dist/**/*.app.tar.gz
+            dist/**/*.msi
+            dist/**/*.exe
+            dist/**/*.deb
+            dist/**/*.AppImage
+            dist/**/*.rpm
+            dist/**/*.apk
+            dist/**/*.aab
