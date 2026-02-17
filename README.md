@@ -2,9 +2,15 @@
 
 Минимальные шаги.
 
-## 1) скопируй `src-tauri`
+## 1) Инициализируй Tauri в своем проекте
 
-скопируй папку `src-tauri` из этого репозитория в корень своего $mol-проекта.
+```bash
+npm i -D @tauri-apps/cli
+npx tauri init
+npx tauri android init --ci
+```
+
+Убедись, что есть файл `src-tauri/icons/icon.png`.
 
 ## 2) Добавь workflow в свой проект
 
@@ -29,14 +35,15 @@ jobs:
         secrets: inherit
 ```
 
-Где `mam_module_path` это путь до твоего entry-модуля.
+Где `mam_module_path` это путь до entry-модуля $mol.
 
 Примеры:
 
+- `app`
 - `bog/formigo/app`
 - `mynamespace/application/app`
 
-## 3) Запусти сборку
+## 3) Запусти сборку и релиз
 
 - Вручную: GitHub Actions -> `Tauri Desktop Build` -> Run workflow
 - Или тегом:
@@ -48,6 +55,9 @@ git push origin v0.1.0
 
 ## Что важно
 
+- Android входит в обязательную сборку.
 - Никаких скриптов копировать не нужно.
 - Workflow сам ставит `mam` + `@tauri-apps/cli`.
 - Workflow сам обновляет `devUrl` и `frontendDist` в `src-tauri/tauri.conf.json`.
+- Если одна платформа упала, остальные артефакты всё равно публикуются в релиз.
+- На `workflow_dispatch` создается draft release.

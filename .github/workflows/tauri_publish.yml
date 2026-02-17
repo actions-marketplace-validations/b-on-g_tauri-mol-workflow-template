@@ -14,7 +14,8 @@ env:
   MAM_DEV_PORT: '9080'
 
 jobs:
-  build:
+  build_desktop:
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -135,27 +136,165 @@ jobs:
         run: npx tauri build --config src-tauri/tauri.conf.json
 
       - name: Upload build artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.artifact }}
           path: src-tauri/target/release/bundle
+          if-no-files-found: ignore
+
+  build_android:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libssl-dev \
+            squashfs-tools
+
+      - name: Install npm deps
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            npm init -y
+          fi
+          npm install --no-save mam @tauri-apps/cli
+
+      - name: Build MAM web bundle
+        shell: bash
+        run: |
+          MODULE_PATH="${MAM_MODULE_PATH}"
+          DIST_PATH="${MODULE_PATH}/-"
+          WAIT_SECONDS=240
+
+          npx mam "${MODULE_PATH}" &
+          MAM_PID=$!
+
+          cleanup() {
+            kill "${MAM_PID}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for ((i=1; i<=WAIT_SECONDS; i++)); do
+            if [ -d "${DIST_PATH}" ]; then
+              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+                echo "[mam] bundle ready: ${DIST_PATH}"
+                exit 0
+              fi
+            fi
+
+            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
+              echo "[mam] process exited before bundle was detected"
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
+          exit 1
+
+      - name: Generate Tauri icons
+        shell: bash
+        run: |
+          if [ -f "src-tauri/icons/icon.png" ]; then
+            npx tauri icon "src-tauri/icons/icon.png" --output "src-tauri/icons"
+          fi
+
+      - name: Configure Tauri config
+        shell: bash
+        run: |
+          MODULE_PATH="${MAM_MODULE_PATH}"
+          DIST_PATH="${MODULE_PATH}/-"
+          DEV_URL="http://localhost:${MAM_DEV_PORT}/${MODULE_PATH}/"
+          FRONTEND_DIST="../${DIST_PATH}"
+
+          node -e '
+          const fs = require("fs");
+          const file = process.argv[1];
+          const devUrl = process.argv[2];
+          const frontendDist = process.argv[3];
+          const conf = JSON.parse(fs.readFileSync(file, "utf8"));
+          conf.build = conf.build || {};
+          conf.build.devUrl = devUrl;
+          conf.build.frontendDist = frontendDist;
+          conf.bundle = conf.bundle || {};
+          conf.bundle.icon = [
+            "icons/icon.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+          ];
+          fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
+          ' "src-tauri/tauri.conf.json" "${DEV_URL}" "${FRONTEND_DIST}"
+
+      - name: Init Android
+        run: npx tauri android init --ci
+
+      - name: Build Android app
+        run: npx tauri android build --apk --config src-tauri/tauri.conf.json
+
+      - name: Upload Android artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-android
+          path: |
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: ignore
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    if: always() && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [build_desktop, build_android]
     runs-on: ubuntu-latest
 
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: tauri-*
+          merge-multiple: true
           path: dist
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: false
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('manual-{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Manual build #{0}', github.run_number) }}
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
           files: |
             dist/**/*.dmg
             dist/**/*.app.tar.gz
@@ -164,3 +303,5 @@ jobs:
             dist/**/*.deb
             dist/**/*.AppImage
             dist/**/*.rpm
+            dist/**/*.apk
+            dist/**/*.aab
