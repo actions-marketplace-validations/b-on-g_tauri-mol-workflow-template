@@ -4,7 +4,6 @@
 
 Что внутри:
 - готовый `src-tauri` каркас
-- скрипт сборки MAM-бандла
 - reusable workflow (`workflow_call`)
 - готовый publish workflow для релизов по тегу
 
@@ -22,8 +21,8 @@
 
 Для своего проекта:
 1. Задайте `MAM_MODULE_PATH` в `.github/workflows/tauri_publish.yml`.
-2. Для local/dev задайте переменную окружения `MAM_MODULE_PATH` перед запуском npm-скриптов.
-3. `devUrl` и `frontendDist` обновляются автоматически скриптом `scripts/configure-tauri-path.sh`.
+2. В reusable workflow передайте `mam_module_path`.
+3. `devUrl` и `frontendDist` workflow обновляет автоматически, без скриптов в вашем репозитории.
 
 ## 3. Локальный запуск
 

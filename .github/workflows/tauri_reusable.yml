@@ -66,21 +66,81 @@ jobs:
             squashfs-tools
 
       - name: Install npm deps
-        run: npm ci
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            npm init -y
+          fi
+          npm install --no-save mam @tauri-apps/cli
 
       - name: Build MAM web bundle
         shell: bash
         run: |
-          if [ -n "${{ inputs.mam_dist_path }}" ]; then
-            bash ./scripts/build-mam.sh "${{ inputs.mam_module_path }}" "${{ inputs.mam_dist_path }}"
-          else
-            bash ./scripts/build-mam.sh "${{ inputs.mam_module_path }}"
+          MODULE_PATH="${{ inputs.mam_module_path }}"
+          DIST_PATH="${{ inputs.mam_dist_path }}"
+          WAIT_SECONDS=240
+
+          if [ -z "${DIST_PATH}" ]; then
+            DIST_PATH="${MODULE_PATH}/-"
           fi
 
-      - name: Configure Tauri paths
+          npx mam "${MODULE_PATH}" &
+          MAM_PID=$!
+
+          cleanup() {
+            kill "${MAM_PID}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for ((i=1; i<=WAIT_SECONDS; i++)); do
+            if [ -d "${DIST_PATH}" ]; then
+              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+                echo "[mam] bundle ready: ${DIST_PATH}"
+                exit 0
+              fi
+            fi
+
+            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
+              echo "[mam] process exited before bundle was detected"
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
+          exit 1
+
+      - name: Configure Tauri config
         shell: bash
         run: |
-          bash ./scripts/configure-tauri-path.sh "${{ inputs.mam_module_path }}" "${{ inputs.mam_dev_port }}"
+          MODULE_PATH="${{ inputs.mam_module_path }}"
+          DIST_PATH="${{ inputs.mam_dist_path }}"
+          PORT="${{ inputs.mam_dev_port }}"
+          TAURI_CONFIG="${{ inputs.tauri_config }}"
+
+          if [ -z "${DIST_PATH}" ]; then
+            DIST_PATH="${MODULE_PATH}/-"
+          fi
+
+          DEV_URL="http://localhost:${PORT}/${MODULE_PATH}/"
+          FRONTEND_DIST="../${DIST_PATH}"
+
+          node -e '
+          const fs = require("fs");
+          const file = process.argv[1];
+          const devUrl = process.argv[2];
+          const frontendDist = process.argv[3];
+          const conf = JSON.parse(fs.readFileSync(file, "utf8"));
+          conf.build = conf.build || {};
+          conf.build.devUrl = devUrl;
+          conf.build.frontendDist = frontendDist;
+          fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
+          ' "${TAURI_CONFIG}" "${DEV_URL}" "${FRONTEND_DIST}"
 
       - name: Build Tauri app
         run: npx tauri build --config "${{ inputs.tauri_config }}"
