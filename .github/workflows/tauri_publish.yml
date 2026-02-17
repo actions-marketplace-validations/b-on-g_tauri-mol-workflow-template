@@ -64,6 +64,7 @@ jobs:
             npm init -y
           fi
           npm install --no-save mam @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Build MAM web bundle
         shell: bash
@@ -191,6 +192,7 @@ jobs:
             npm init -y
           fi
           npm install --no-save mam @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Build MAM web bundle
         shell: bash
@@ -293,8 +295,8 @@ jobs:
         with:
           tag_name: "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('manual-{0}', github.run_number) }}"
           name: "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Manual build {0}', github.run_number) }}"
-          draft: "${{ github.event_name == 'workflow_dispatch' }}"
-          prerelease: "${{ github.event_name == 'workflow_dispatch' }}"
+          draft: false
+          prerelease: false
           files: |
             dist/**/*.dmg
             dist/**/*.app.tar.gz
