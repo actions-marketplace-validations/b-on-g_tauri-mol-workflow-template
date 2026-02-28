@@ -56,7 +56,9 @@ jobs:
         shell: bash
         run: |
           TAURI_DIR="$(dirname "${{ inputs.tauri_config }}")"
+          PROJECT_DIR="$(dirname "${TAURI_DIR}")"
           echo "tauri_dir=${TAURI_DIR}" >> "$GITHUB_OUTPUT"
+          echo "project_dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -158,13 +160,15 @@ jobs:
           fi
 
           DEV_URL="http://localhost:${PORT}/${MODULE_PATH}/"
-          FRONTEND_DIST="../${DIST_PATH}"
 
           node -e '
           const fs = require("fs");
+          const path = require("path");
           const file = process.argv[1];
           const devUrl = process.argv[2];
-          const frontendDist = process.argv[3];
+          const distPath = process.argv[3];
+          const tauriDir = path.dirname(file);
+          const frontendDist = path.relative(tauriDir, distPath);
           const conf = JSON.parse(fs.readFileSync(file, "utf8"));
           conf.build = conf.build || {};
           conf.build.devUrl = devUrl;
@@ -176,10 +180,11 @@ jobs:
             "icons/icon.ico"
           ];
           fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
-          ' "${TAURI_CONFIG}" "${DEV_URL}" "${FRONTEND_DIST}"
+          ' "${TAURI_CONFIG}" "${DEV_URL}" "${DIST_PATH}"
 
       - name: Build Tauri app
-        run: npx tauri build --config "${{ inputs.tauri_config }}"
+        working-directory: ${{ steps.paths.outputs.project_dir }}
+        run: npx tauri build
 
       - name: Upload build artifacts
         if: always()
@@ -204,7 +209,9 @@ jobs:
         shell: bash
         run: |
           TAURI_DIR="$(dirname "${{ inputs.tauri_config }}")"
+          PROJECT_DIR="$(dirname "${TAURI_DIR}")"
           echo "tauri_dir=${TAURI_DIR}" >> "$GITHUB_OUTPUT"
+          echo "project_dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -314,13 +321,15 @@ jobs:
           fi
 
           DEV_URL="http://localhost:${PORT}/${MODULE_PATH}/"
-          FRONTEND_DIST="../${DIST_PATH}"
 
           node -e '
           const fs = require("fs");
+          const path = require("path");
           const file = process.argv[1];
           const devUrl = process.argv[2];
-          const frontendDist = process.argv[3];
+          const distPath = process.argv[3];
+          const tauriDir = path.dirname(file);
+          const frontendDist = path.relative(tauriDir, distPath);
           const conf = JSON.parse(fs.readFileSync(file, "utf8"));
           conf.build = conf.build || {};
           conf.build.devUrl = devUrl;
@@ -332,13 +341,15 @@ jobs:
             "icons/icon.ico"
           ];
           fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
-          ' "${TAURI_CONFIG}" "${DEV_URL}" "${FRONTEND_DIST}"
+          ' "${TAURI_CONFIG}" "${DEV_URL}" "${DIST_PATH}"
 
       - name: Init Android
+        working-directory: ${{ steps.paths.outputs.project_dir }}
         run: npx tauri android init --ci
 
       - name: Build Android app
-        run: npx tauri android build --apk --config "${{ inputs.tauri_config }}"
+        working-directory: ${{ steps.paths.outputs.project_dir }}
+        run: npx tauri android build --apk
 
       - name: Upload Android artifacts
         if: always()
