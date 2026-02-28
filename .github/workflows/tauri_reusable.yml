@@ -23,8 +23,25 @@ on:
         type: string
         required: false
         default: ''
+      ios_export_method:
+        description: 'iOS export method: app-store-connect, ad-hoc, debugging'
+        type: string
+        required: false
+        default: 'app-store-connect'
     secrets:
       GH_TOKEN:
+        required: false
+      APPLE_API_ISSUER:
+        required: false
+      APPLE_API_KEY:
+        required: false
+      APPLE_API_KEY_CONTENT:
+        required: false
+      IOS_CERTIFICATE:
+        required: false
+      IOS_CERTIFICATE_PASSWORD:
+        required: false
+      IOS_MOBILE_PROVISION:
         required: false
 
 permissions:
@@ -193,6 +210,209 @@ jobs:
           name: tauri-${{ matrix.artifact }}
           path: ${{ steps.paths.outputs.tauri_dir }}/target/release/bundle
           if-no-files-found: ignore
+
+  build_ios:
+    continue-on-error: true
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.checkout_path || '.' }}
+
+      - name: Compute paths
+        id: paths
+        shell: bash
+        run: |
+          TAURI_DIR="$(dirname "${{ inputs.tauri_config }}")"
+          PROJECT_DIR="$(dirname "${TAURI_DIR}")"
+          echo "tauri_dir=${TAURI_DIR}" >> "$GITHUB_OUTPUT"
+          echo "project_dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Install npm deps
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            npm init -y
+          fi
+          npm install --no-save mam @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
+
+      - name: Build MAM web bundle
+        shell: bash
+        run: |
+          MODULE_PATH="${{ inputs.mam_module_path }}"
+          DIST_PATH="${{ inputs.mam_dist_path }}"
+          WAIT_SECONDS=240
+
+          if [ -z "${DIST_PATH}" ]; then
+            DIST_PATH="${MODULE_PATH}/-"
+          fi
+
+          npx mam "${MODULE_PATH}" &
+          MAM_PID=$!
+
+          cleanup() {
+            kill "${MAM_PID}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for ((i=1; i<=WAIT_SECONDS; i++)); do
+            if [ -d "${DIST_PATH}" ]; then
+              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+                echo "[mam] bundle ready: ${DIST_PATH}"
+                exit 0
+              fi
+            fi
+
+            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
+              echo "[mam] process exited before bundle was detected"
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
+          exit 1
+
+      - name: Generate Tauri icons
+        shell: bash
+        run: |
+          TAURI_DIR="${{ steps.paths.outputs.tauri_dir }}"
+          ICON_SRC=""
+          for ext in png svg; do
+            if [ -f "${TAURI_DIR}/icons/icon.${ext}" ]; then
+              ICON_SRC="${TAURI_DIR}/icons/icon.${ext}"
+              break
+            fi
+          done
+          if [ -n "${ICON_SRC}" ]; then
+            npx tauri icon "${ICON_SRC}" --ios-color '#ffffff' --output "${TAURI_DIR}/icons"
+          fi
+
+      - name: Configure Tauri config
+        shell: bash
+        run: |
+          MODULE_PATH="${{ inputs.mam_module_path }}"
+          DIST_PATH="${{ inputs.mam_dist_path }}"
+          PORT="${{ inputs.mam_dev_port }}"
+          TAURI_CONFIG="${{ inputs.tauri_config }}"
+
+          if [ -z "${DIST_PATH}" ]; then
+            DIST_PATH="${MODULE_PATH}/-"
+          fi
+
+          DEV_URL="http://localhost:${PORT}/${MODULE_PATH}/"
+
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+          const file = process.argv[1];
+          const devUrl = process.argv[2];
+          const distPath = process.argv[3];
+          const tauriDir = path.dirname(file);
+          const frontendDist = path.relative(tauriDir, distPath);
+          const conf = JSON.parse(fs.readFileSync(file, "utf8"));
+          conf.build = conf.build || {};
+          conf.build.devUrl = devUrl;
+          conf.build.frontendDist = frontendDist;
+          conf.bundle = conf.bundle || {};
+          conf.bundle.icon = [
+            "icons/icon.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+          ];
+          fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
+          ' "${TAURI_CONFIG}" "${DEV_URL}" "${DIST_PATH}"
+
+      - name: Setup Apple API Key (automatic signing)
+        if: ${{ secrets.APPLE_API_KEY_CONTENT != '' }}
+        shell: bash
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APPLE_API_KEY_CONTENT }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
+
+      - name: Setup iOS signing certificate (manual signing)
+        if: ${{ secrets.IOS_CERTIFICATE != '' }}
+        shell: bash
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          echo "${IOS_CERTIFICATE}" | base64 --decode > "${CERT_PATH}"
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security import "${CERT_PATH}" -P "${IOS_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${KEYCHAIN_PATH}"
+          security set-key-partition-list -S apple-tool:,apple: -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain-db
+
+      - name: Setup iOS provisioning profile (manual signing)
+        if: ${{ secrets.IOS_MOBILE_PROVISION != '' }}
+        shell: bash
+        env:
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: |
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          echo "${IOS_MOBILE_PROVISION}" | base64 --decode > "${PROFILE_PATH}"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /dev/stdin <<< "$(security cms -D -i "${PROFILE_PATH}")")
+          cp "${PROFILE_PATH}" ~/Library/MobileDevice/Provisioning\ Profiles/"${UUID}.mobileprovision"
+
+      - name: Init iOS
+        working-directory: ${{ steps.paths.outputs.project_dir }}
+        run: npx tauri ios init
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_CONTENT != '' && format('{0}/.appstoreconnect/private_keys/AuthKey_{1}.p8', env.HOME, secrets.APPLE_API_KEY) || '' }}
+
+      - name: Build iOS app
+        working-directory: ${{ steps.paths.outputs.project_dir }}
+        run: npx tauri ios build --export-method ${{ inputs.ios_export_method }}
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_CONTENT != '' && format('{0}/.appstoreconnect/private_keys/AuthKey_{1}.p8', env.HOME, secrets.APPLE_API_KEY) || '' }}
+
+      - name: Upload iOS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-ios
+          path: |
+            ${{ steps.paths.outputs.tauri_dir }}/gen/apple/build/arm64/*.ipa
+          if-no-files-found: ignore
+
+      - name: Cleanup signing
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/profile.mobileprovision"
+          rm -rf ~/.appstoreconnect/private_keys
 
   build_android:
     continue-on-error: true
@@ -363,7 +583,7 @@ jobs:
 
   release:
     if: always() && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
-    needs: [build_desktop, build_android]
+    needs: [build_desktop, build_ios, build_android]
     runs-on: ubuntu-latest
 
     steps:
@@ -391,3 +611,4 @@ jobs:
             dist/**/*.rpm
             dist/**/*.apk
             dist/**/*.aab
+            dist/**/*.ipa
