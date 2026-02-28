@@ -18,6 +18,11 @@ on:
         type: string
         required: false
         default: src-tauri/tauri.conf.json
+      checkout_path:
+        description: 'Subdirectory to checkout the repo into (for MAM namespace alignment, e.g. bog/project/tree)'
+        type: string
+        required: false
+        default: ''
     secrets:
       GH_TOKEN:
         required: false
@@ -43,6 +48,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.checkout_path || '.' }}
+
+      - name: Compute paths
+        id: paths
+        shell: bash
+        run: |
+          TAURI_DIR="$(dirname "${{ inputs.tauri_config }}")"
+          echo "tauri_dir=${TAURI_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -119,8 +133,16 @@ jobs:
       - name: Generate Tauri icons
         shell: bash
         run: |
-          if [ -f "src-tauri/icons/icon.png" ]; then
-            npx tauri icon "src-tauri/icons/icon.png" --output "src-tauri/icons"
+          TAURI_DIR="${{ steps.paths.outputs.tauri_dir }}"
+          ICON_SRC=""
+          for ext in png svg; do
+            if [ -f "${TAURI_DIR}/icons/icon.${ext}" ]; then
+              ICON_SRC="${TAURI_DIR}/icons/icon.${ext}"
+              break
+            fi
+          done
+          if [ -n "${ICON_SRC}" ]; then
+            npx tauri icon "${ICON_SRC}" --output "${TAURI_DIR}/icons"
           fi
 
       - name: Configure Tauri config
@@ -164,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.artifact }}
-          path: src-tauri/target/release/bundle
+          path: ${{ steps.paths.outputs.tauri_dir }}/target/release/bundle
           if-no-files-found: ignore
 
   build_android:
@@ -174,6 +196,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.checkout_path || '.' }}
+
+      - name: Compute paths
+        id: paths
+        shell: bash
+        run: |
+          TAURI_DIR="$(dirname "${{ inputs.tauri_config }}")"
+          echo "tauri_dir=${TAURI_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -258,8 +289,16 @@ jobs:
       - name: Generate Tauri icons
         shell: bash
         run: |
-          if [ -f "src-tauri/icons/icon.png" ]; then
-            npx tauri icon "src-tauri/icons/icon.png" --output "src-tauri/icons"
+          TAURI_DIR="${{ steps.paths.outputs.tauri_dir }}"
+          ICON_SRC=""
+          for ext in png svg; do
+            if [ -f "${TAURI_DIR}/icons/icon.${ext}" ]; then
+              ICON_SRC="${TAURI_DIR}/icons/icon.${ext}"
+              break
+            fi
+          done
+          if [ -n "${ICON_SRC}" ]; then
+            npx tauri icon "${ICON_SRC}" --output "${TAURI_DIR}/icons"
           fi
 
       - name: Configure Tauri config
@@ -307,8 +346,8 @@ jobs:
         with:
           name: tauri-android
           path: |
-            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-            src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+            ${{ steps.paths.outputs.tauri_dir }}/gen/android/app/build/outputs/apk/**/*.apk
+            ${{ steps.paths.outputs.tauri_dir }}/gen/android/app/build/outputs/bundle/**/*.aab
           if-no-files-found: ignore
 
   release:
