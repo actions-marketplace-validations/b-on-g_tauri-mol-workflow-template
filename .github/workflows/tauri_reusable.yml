@@ -341,15 +341,27 @@ jobs:
           fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
           ' "${TAURI_CONFIG}" "${DEV_URL}" "${DIST_PATH}"
 
+      - name: Check signing secrets availability
+        id: signing
+        shell: bash
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+        run: |
+          echo "has_api_key=$([[ -n "$APPLE_API_KEY_CONTENT" ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_certificate=$([[ -n "$IOS_CERTIFICATE" ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_provision=$([[ -n "$IOS_MOBILE_PROVISION" ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+
       - name: Setup Apple API Key (automatic signing)
-        if: ${{ secrets.APPLE_API_KEY_CONTENT != '' }}
+        if: steps.signing.outputs.has_api_key == 'true'
         shell: bash
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo "${{ secrets.APPLE_API_KEY_CONTENT }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
 
       - name: Setup iOS signing certificate (manual signing)
-        if: ${{ secrets.IOS_CERTIFICATE != '' }}
+        if: steps.signing.outputs.has_certificate == 'true'
         shell: bash
         env:
           IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
@@ -369,7 +381,7 @@ jobs:
           security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain-db
 
       - name: Setup iOS provisioning profile (manual signing)
-        if: ${{ secrets.IOS_MOBILE_PROVISION != '' }}
+        if: steps.signing.outputs.has_provision == 'true'
         shell: bash
         env:
           IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
@@ -383,19 +395,30 @@ jobs:
 
       - name: Init iOS
         working-directory: ${{ steps.paths.outputs.project_dir }}
-        run: npx tauri ios init
+        shell: bash
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_CONTENT != '' && format('{0}/.appstoreconnect/private_keys/AuthKey_{1}.p8', env.HOME, secrets.APPLE_API_KEY) || '' }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          if [[ -n "$APPLE_API_KEY_CONTENT" ]]; then
+            export APPLE_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8"
+          fi
+          npx tauri ios init
 
       - name: Build iOS app
         working-directory: ${{ steps.paths.outputs.project_dir }}
-        run: npx tauri ios build --export-method ${{ inputs.ios_export_method }}
+        shell: bash
         env:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_CONTENT != '' && format('{0}/.appstoreconnect/private_keys/AuthKey_{1}.p8', env.HOME, secrets.APPLE_API_KEY) || '' }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          IOS_EXPORT_METHOD: ${{ inputs.ios_export_method }}
+        run: |
+          if [[ -n "$APPLE_API_KEY_CONTENT" ]]; then
+            export APPLE_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8"
+          fi
+          npx tauri ios build --export-method "$IOS_EXPORT_METHOD"
 
       - name: Upload iOS artifacts
         if: always()
