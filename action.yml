@@ -1,0 +1,181 @@
+name: "Tauri + $mol Build"
+description: "Build Tauri desktop/mobile app from a $mol/MAM module. Runs on the current runner OS — use matrix strategy for multi-platform builds."
+
+inputs:
+  module:
+    description: "MAM module path (e.g. appname/app, bog/project/tree/appname/app)"
+    required: true
+  dev-port:
+    description: "MAM dev server port"
+    required: false
+    default: "9080"
+  tauri-config:
+    description: "Path to tauri.conf.json"
+    required: false
+    default: "src-tauri/tauri.conf.json"
+  platform:
+    description: "Target platform: desktop (default), android, ios"
+    required: false
+    default: "desktop"
+  ios-export-method:
+    description: "iOS export method (app-store-connect, development, ad-hoc)"
+    required: false
+    default: "app-store-connect"
+  timeout:
+    description: "MAM build timeout in seconds"
+    required: false
+    default: "240"
+
+outputs:
+  artifact-path:
+    description: "Path to built artifacts"
+    value: ${{ steps.paths.outputs.artifact-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Compute paths
+      id: paths
+      shell: bash
+      run: |
+        CONFIG_DIR=$(dirname "${{ inputs.tauri-config }}")
+        MODULE="${{ inputs.module }}"
+        DIST_PATH="${MODULE}/-"
+        echo "config-dir=${CONFIG_DIR}" >> "$GITHUB_OUTPUT"
+        echo "dist-path=${DIST_PATH}" >> "$GITHUB_OUTPUT"
+        echo "artifact-path=${CONFIG_DIR}/target/release/bundle" >> "$GITHUB_OUTPUT"
+        echo "[tauri-action] module=${MODULE} dist=${DIST_PATH} config-dir=${CONFIG_DIR}"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.platform == 'ios' && 'aarch64-apple-ios' || '' }}
+
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+          patchelf libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        npm install mam @tauri-apps/cli
+
+    - name: Build MAM bundle
+      shell: bash
+      env:
+        WAIT_SECONDS: ${{ inputs.timeout }}
+      run: |
+        MODULE="${{ inputs.module }}"
+        DIST="${{ steps.paths.outputs.dist-path }}"
+        echo "[mam] Building ${MODULE}..."
+        npx mam "${MODULE}" &
+        MAM_PID=$!
+        trap "kill ${MAM_PID} 2>/dev/null || true" EXIT
+        for ((i=1; i<=WAIT_SECONDS; i++)); do
+          if [[ -d "${DIST}" ]] && [[ -f "${DIST}/web.js" || -f "${DIST}/index.html" || -f "${DIST}/web.css" ]]; then
+            echo "[mam] Bundle ready in ${DIST}"
+            kill ${MAM_PID} 2>/dev/null || true
+            exit 0
+          fi
+          if ! kill -0 ${MAM_PID} 2>/dev/null; then
+            echo "::error::[mam] Process exited before bundle was detected"
+            exit 1
+          fi
+          sleep 1
+        done
+        echo "::error::[mam] Timeout waiting for bundle (${WAIT_SECONDS}s)"
+        exit 1
+
+    - name: Generate icons
+      shell: bash
+      run: |
+        CONFIG_DIR="${{ steps.paths.outputs.config-dir }}"
+        ICON_PNG="${CONFIG_DIR}/icons/icon.png"
+        ICON_SVG="${CONFIG_DIR}/icons/icon.svg"
+        if [ -f "${ICON_PNG}" ]; then
+          npx tauri icon "${ICON_PNG}" --config "${{ inputs.tauri-config }}"
+        elif [ -f "${ICON_SVG}" ]; then
+          npx tauri icon "${ICON_SVG}" --config "${{ inputs.tauri-config }}"
+        else
+          echo "[tauri] No icon source found, skipping icon generation"
+        fi
+
+    - name: Configure tauri.conf.json
+      shell: bash
+      run: |
+        MODULE="${{ inputs.module }}"
+        PORT="${{ inputs.dev-port }}"
+        CONFIG="${{ inputs.tauri-config }}"
+        node -e '
+          const fs = require("fs");
+          const [file, devUrl, frontendDist] = process.argv.slice(1);
+          const conf = JSON.parse(fs.readFileSync(file, "utf8"));
+          conf.build = conf.build || {};
+          conf.build.devUrl = devUrl;
+          conf.build.frontendDist = frontendDist;
+          fs.writeFileSync(file, JSON.stringify(conf, null, 2) + "\n");
+        ' "${CONFIG}" "http://localhost:${PORT}/${MODULE}/" "../${MODULE}/-"
+
+    - name: Setup Android
+      if: inputs.platform == 'android'
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - name: Install Android SDK
+      if: inputs.platform == 'android'
+      uses: android-actions/setup-android@v3
+
+    - name: Init Android
+      if: inputs.platform == 'android'
+      shell: bash
+      run: npx tauri android init --ci
+
+    - name: Init iOS
+      if: inputs.platform == 'ios'
+      shell: bash
+      run: npx tauri ios init
+
+    - name: Build desktop
+      if: inputs.platform == 'desktop'
+      shell: bash
+      run: npx tauri build --config "${{ inputs.tauri-config }}"
+
+    - name: Build Android
+      if: inputs.platform == 'android'
+      shell: bash
+      run: npx tauri android build --apk --config "${{ inputs.tauri-config }}"
+
+    - name: Build iOS
+      if: inputs.platform == 'ios'
+      shell: bash
+      run: npx tauri ios build --export-method "${{ inputs.ios-export-method }}" --config "${{ inputs.tauri-config }}"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: tauri-${{ runner.os }}-${{ inputs.platform }}
+        path: |
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.dmg
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.app.tar.gz
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.msi
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.exe
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.deb
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.AppImage
+          ${{ steps.paths.outputs.config-dir }}/target/release/bundle/**/*.rpm
+          ${{ steps.paths.outputs.config-dir }}/gen/android/app/build/outputs/**/*.apk
+          ${{ steps.paths.outputs.config-dir }}/gen/android/app/build/outputs/**/*.aab
+          ${{ steps.paths.outputs.config-dir }}/gen/apple/build/**/*.ipa
+        if-no-files-found: warn
