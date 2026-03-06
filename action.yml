@@ -1,5 +1,8 @@
 name: "Tauri + $mol Build"
-description: "Build Tauri desktop/mobile app from a $mol/MAM module. Runs on the current runner OS — use matrix strategy for multi-platform builds."
+description: "Build Tauri desktop/mobile app from a $mol/MAM module for any platform."
+branding:
+  icon: "package"
+  color: "orange"
 
 inputs:
   module:
