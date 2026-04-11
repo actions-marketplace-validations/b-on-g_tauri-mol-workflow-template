@@ -139,9 +139,8 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
-                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                if [ -f "${DIST_PATH}/test.html" ]; then
+                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
                   echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
@@ -288,9 +287,8 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
-                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                if [ -f "${DIST_PATH}/test.html" ]; then
+                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
                   echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
@@ -540,9 +538,8 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
-                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                if [ -f "${DIST_PATH}/test.html" ]; then
+                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
                   echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
