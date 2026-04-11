@@ -110,6 +110,7 @@ jobs:
           fi
           npm install --no-save mam @tauri-apps/cli
           npm pkg set scripts.tauri="tauri"
+          git init . 2>/dev/null || true
           git add -A && git commit -m "deps" --allow-empty || true
 
       - name: Build MAM web bundle
@@ -253,6 +254,7 @@ jobs:
           fi
           npm install --no-save mam @tauri-apps/cli
           npm pkg set scripts.tauri="tauri"
+          git init . 2>/dev/null || true
           git add -A && git commit -m "deps" --allow-empty || true
 
       - name: Build MAM web bundle
@@ -499,6 +501,7 @@ jobs:
           fi
           npm install --no-save mam @tauri-apps/cli
           npm pkg set scripts.tauri="tauri"
+          git init . 2>/dev/null || true
           git add -A && git commit -m "deps" --allow-empty || true
 
       - name: Build MAM web bundle
