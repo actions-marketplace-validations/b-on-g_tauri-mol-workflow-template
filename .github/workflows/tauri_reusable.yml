@@ -137,7 +137,7 @@ jobs:
 
           for ((i=1; i<=WAIT_SECONDS; i++)); do
             if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+              if [ -f "${DIST_PATH}/web.js" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ -f "${DIST_PATH}/test.html" ]; then
                   { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
@@ -285,7 +285,7 @@ jobs:
 
           for ((i=1; i<=WAIT_SECONDS; i++)); do
             if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+              if [ -f "${DIST_PATH}/web.js" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ -f "${DIST_PATH}/test.html" ]; then
                   { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
@@ -536,7 +536,7 @@ jobs:
 
           for ((i=1; i<=WAIT_SECONDS; i++)); do
             if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
+              if [ -f "${DIST_PATH}/web.js" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ -f "${DIST_PATH}/test.html" ]; then
                   { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
