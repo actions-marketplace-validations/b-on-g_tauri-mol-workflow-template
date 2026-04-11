@@ -105,12 +105,9 @@ jobs:
             libssl-dev \
             squashfs-tools
 
-      - name: Install deps
+      - name: Install MAM deps
         shell: bash
-        run: |
-          npm install
-          npm install --no-save @tauri-apps/cli
-          npm pkg set scripts.tauri="tauri"
+        run: npm install
 
       - name: Build MAM web bundle
         shell: bash
@@ -128,6 +125,12 @@ jobs:
             { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
             echo "[mam] created clean index.html from test.html"
           fi
+
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
@@ -251,6 +254,12 @@ jobs:
             { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
             echo "[mam] created clean index.html from test.html"
           fi
+
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
@@ -477,6 +486,12 @@ jobs:
             { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
             echo "[mam] created clean index.html from test.html"
           fi
+
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
