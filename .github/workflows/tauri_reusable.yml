@@ -139,6 +139,10 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
+                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
+                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
+                  echo "[mam] copied test.html -> index.html"
+                fi
                 exit 0
               fi
             fi
@@ -283,6 +287,10 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
+                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
+                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
+                  echo "[mam] copied test.html -> index.html"
+                fi
                 exit 0
               fi
             fi
@@ -530,6 +538,10 @@ jobs:
             if [ -d "${DIST_PATH}" ]; then
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
+                if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
+                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
+                  echo "[mam] copied test.html -> index.html"
+                fi
                 exit 0
               fi
             fi
