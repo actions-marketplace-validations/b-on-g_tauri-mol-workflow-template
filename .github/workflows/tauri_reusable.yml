@@ -121,42 +121,17 @@ jobs:
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npx mam "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ -f "${DIST_PATH}/test.html" ]; then
-                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
-                  echo "[mam] created clean index.html from test.html"
-                fi
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
       - name: Generate Tauri icons
         shell: bash
@@ -269,42 +244,17 @@ jobs:
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npx mam "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ -f "${DIST_PATH}/test.html" ]; then
-                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
-                  echo "[mam] created clean index.html from test.html"
-                fi
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
       - name: Generate Tauri icons
         shell: bash
@@ -520,42 +470,17 @@ jobs:
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npx mam "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                if [ -f "${DIST_PATH}/test.html" ]; then
-                  { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
-                  echo "[mam] created clean index.html from test.html"
-                fi
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
       - name: Generate Tauri icons
         shell: bash
