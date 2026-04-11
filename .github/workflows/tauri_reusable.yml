@@ -140,8 +140,9 @@ jobs:
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
-                  echo "[mam] copied test.html -> index.html"
+                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
+                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                  echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
               fi
@@ -288,8 +289,9 @@ jobs:
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
-                  echo "[mam] copied test.html -> index.html"
+                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
+                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                  echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
               fi
@@ -539,8 +541,9 @@ jobs:
               if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
                 echo "[mam] bundle ready: ${DIST_PATH}"
                 if [ ! -f "${DIST_PATH}/index.html" ] && [ -f "${DIST_PATH}/test.html" ]; then
-                  cp "${DIST_PATH}/test.html" "${DIST_PATH}/index.html"
-                  echo "[mam] copied test.html -> index.html"
+                  sed '/<script src="\/mol\//d; /<script src="web\.test\./d; /addEventListener.*load.*audit/,/<\/script>/d' \
+                    "${DIST_PATH}/test.html" > "${DIST_PATH}/index.html"
+                  echo "[mam] created clean index.html from test.html"
                 fi
                 exit 0
               fi
