@@ -56,10 +56,13 @@ jobs:
         include:
           - os: ubuntu-22.04
             artifact: linux
+            bundles: deb,appimage,rpm
           - os: windows-latest
             artifact: windows
+            bundles: msi,nsis
           - os: macos-latest
             artifact: macos
+            bundles: dmg,app
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -203,7 +206,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: ${{ steps.paths.outputs.project_dir }}
-        run: npx tauri build --bundles all
+        run: npx tauri build --bundles ${{ matrix.bundles }}
 
       - name: Upload build artifacts
         if: always()
