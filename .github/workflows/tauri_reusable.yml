@@ -203,7 +203,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: ${{ steps.paths.outputs.project_dir }}
-        run: npx tauri build
+        run: npx tauri build --bundles all
 
       - name: Upload build artifacts
         if: always()
