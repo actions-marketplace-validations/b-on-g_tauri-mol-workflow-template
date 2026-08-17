@@ -56,14 +56,21 @@ jobs:
         include:
           - os: ubuntu-22.04
             artifact: linux
+            bundles: deb,appimage,rpm
           - os: windows-latest
             artifact: windows
+            bundles: msi,nsis
           - os: macos-latest
             artifact: macos
+            bundles: dmg,app
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout
+      - name: Clone MAM
+        shell: bash
+        run: git clone --depth 1 --branch master https://github.com/hyoo-ru/mam.git .
+
+      - name: Checkout project
         uses: actions/checkout@v4
         with:
           path: ${{ inputs.checkout_path || '.' }}
@@ -98,56 +105,32 @@ jobs:
             libssl-dev \
             squashfs-tools
 
-      - name: Install npm deps
+      - name: Install MAM deps
         shell: bash
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            npm init -y
-          fi
-          npm install --no-save mam @tauri-apps/cli
-          npm pkg set scripts.tauri="tauri"
+        run: npm install
 
       - name: Build MAM web bundle
         shell: bash
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npm start "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
@@ -201,7 +184,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: ${{ steps.paths.outputs.project_dir }}
-        run: npx tauri build
+        run: npx tauri build --bundles ${{ matrix.bundles }}
 
       - name: Upload build artifacts
         if: always()
@@ -252,44 +235,31 @@ jobs:
           fi
           npm install --no-save mam @tauri-apps/cli
           npm pkg set scripts.tauri="tauri"
+          git init . 2>/dev/null || true
+          git add -A && git commit -m "deps" --allow-empty || true
 
       - name: Build MAM web bundle
         shell: bash
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npx mam "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
@@ -497,44 +467,31 @@ jobs:
           fi
           npm install --no-save mam @tauri-apps/cli
           npm pkg set scripts.tauri="tauri"
+          git init . 2>/dev/null || true
+          git add -A && git commit -m "deps" --allow-empty || true
 
       - name: Build MAM web bundle
         shell: bash
         run: |
           MODULE_PATH="${{ inputs.mam_module_path }}"
           DIST_PATH="${{ inputs.mam_dist_path }}"
-          WAIT_SECONDS=240
 
           if [ -z "${DIST_PATH}" ]; then
             DIST_PATH="${MODULE_PATH}/-"
           fi
 
-          npx mam "${MODULE_PATH}" &
-          MAM_PID=$!
+          npx mam "${MODULE_PATH}"
 
-          cleanup() {
-            kill "${MAM_PID}" 2>/dev/null || true
-          }
-          trap cleanup EXIT
+          if [ -f "${DIST_PATH}/test.html" ]; then
+            { sed -n '1,/<script src="web.js"><\/script>/p' "${DIST_PATH}/test.html"; printf '\t</body>\n</html>\n'; } > "${DIST_PATH}/index.html"
+            echo "[mam] created clean index.html from test.html"
+          fi
 
-          for ((i=1; i<=WAIT_SECONDS; i++)); do
-            if [ -d "${DIST_PATH}" ]; then
-              if [ -f "${DIST_PATH}/web.js" ] || [ -f "${DIST_PATH}/index.html" ] || [ -f "${DIST_PATH}/web.css" ]; then
-                echo "[mam] bundle ready: ${DIST_PATH}"
-                exit 0
-              fi
-            fi
-
-            if ! kill -0 "${MAM_PID}" 2>/dev/null; then
-              echo "[mam] process exited before bundle was detected"
-              exit 1
-            fi
-
-            sleep 1
-          done
-
-          echo "[mam] timeout waiting for bundle: ${DIST_PATH}"
-          exit 1
+      - name: Install Tauri CLI
+        shell: bash
+        run: |
+          npm install --no-save @tauri-apps/cli
+          npm pkg set scripts.tauri="tauri"
 
       - name: Generate Tauri icons
         shell: bash
